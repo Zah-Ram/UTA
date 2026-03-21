@@ -1,14 +1,10 @@
 # Uncertainty Trajectory Analysis (UTA)
 
-**Uncertainty Trajectory Analysis for Misclassification Detection in Deep Neural Networks**
-
-> Accepted at *Knowledge-Based Systems* (Elsevier), 2025.
+**Uncertainty Trajectory Analysis for Interpretable Misclassification Detection in Deep Neural Networks**
 
 ## Overview
 
-UTA is a post-hoc misclassification detection framework that monitors the evolution of predictions across hierarchical network depths rather than relying solely on terminal outputs. By equipping a backbone network with lightweight auxiliary classifiers, UTA extracts the prediction trajectory (probability, logit, and entropy) across multiple intermediate depths in a single forward pass, then encodes these dynamics into 23 interpretable descriptors for error detection.
-
-![UTA Framework](assets/uta_framework.png)
+UTA is a misclassification detection framework that monitors the evolution of predictions across hierarchical network depths rather than relying solely on terminal outputs. By equipping a backbone network with lightweight auxiliary classifiers, UTA extracts the prediction trajectory (probability, logit, and entropy) across multiple intermediate depths in a single forward pass, then encodes these dynamics into 23 interpretable descriptors for error detection.
 
 ## Key Results
 
@@ -27,9 +23,6 @@ UTA/
 ├── README.md
 ├── requirements.txt
 ├── pretrained/                # Pretrained model weights (download below)
-│   ├── nih_densenet121.pth
-│   ├── chexpert_densenet121.pth
-│   └── cifar100_resnet50.pth
 ├── uta/
 │   ├── __init__.py
 │   ├── models.py              # Backbone architectures with auxiliary classifiers
@@ -40,15 +33,13 @@ UTA/
 │   ├── __init__.py
 │   ├── unsupervised.py        # MSP, Entropy, MC-Dropout, ReAct, DICE, ASH, GradNorm
 │   └── supervised.py          # ConfidNet, Learned baseline
-├── evaluate_nih.py            # Reproduce NIH ChestX-ray14 results
-├── evaluate_chexpert.py       # Reproduce CheXpert results
-└── evaluate_cifar100.py       # Reproduce CIFAR-100 results
+└── evaluate_nih.py            # Reproduce NIH ChestX-ray14 results
 ```
 
 ## Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/UTA.git
+git clone https://github.com/Zah-Ram/UTA.git
 cd UTA
 pip install -r requirements.txt
 ```
@@ -100,13 +91,11 @@ torchvision.datasets.CIFAR100(root='./data', download=True)
 
 ## Pretrained Models
 
-Download pretrained weights from [Google Drive / Zenodo link]:
-
-| Model | Dataset | Architecture | Val AUC | Download |
-|---|---|---|---|---|
-| `nih_densenet121.pth` | NIH ChestX-ray14 | DenseNet-121 + 4 aux heads | 0.843 | [link] |
-| `chexpert_densenet121.pth` | CheXpert | DenseNet-121 + 4 aux heads | 0.878 | [link] |
-| `cifar100_resnet50.pth` | CIFAR-100 | ResNet-50 + 4 aux heads | 0.807 | [link] |
+| Model | Dataset | Architecture | Download |
+|---|---|---|---|
+| `trajectory-model-nih.pth` | NIH ChestX-ray14 | DenseNet-121 + 4 aux heads | [Google Drive](https://drive.google.com/file/d/1lqnaKTdS6Z4vGonsgh4UXZ06XubnyPrL/view?usp=sharing) |
+| `trajectory-model-chexpert.pth` | CheXpert | DenseNet-121 + 4 aux heads | [Google Drive](https://drive.google.com/file/d/18gPATf3PATHqFfrD5Uzd-lWOQdTUHlMA/view?usp=sharing) |
+| `cifar100-resnet50.pth` | CIFAR-100 | ResNet-50 + 4 aux heads | Coming soon |
 
 Place downloaded weights in the `pretrained/` directory.
 
@@ -117,32 +106,8 @@ Place downloaded weights in the `pretrained/` directory.
 ```bash
 python evaluate_nih.py \
     --data_root ./data/nih \
-    --model_path ./pretrained/nih_densenet121.pth \
+    --model_path ./pretrained/trajectory-model-nih.pth \
     --output_dir ./results/nih \
-    --seeds 42 123 456 789 1024 \
-    --n_folds 5 \
-    --mc_samples 30
-```
-
-### CheXpert
-
-```bash
-python evaluate_chexpert.py \
-    --data_root ./data/chexpert \
-    --model_path ./pretrained/chexpert_densenet121.pth \
-    --output_dir ./results/chexpert \
-    --seeds 42 123 456 789 1024 \
-    --n_folds 5 \
-    --mc_samples 30
-```
-
-### CIFAR-100
-
-```bash
-python evaluate_cifar100.py \
-    --data_root ./data/cifar100 \
-    --model_path ./pretrained/cifar100_resnet50.pth \
-    --output_dir ./results/cifar100 \
     --seeds 42 123 456 789 1024 \
     --n_folds 5 \
     --mc_samples 30
@@ -154,8 +119,8 @@ The 23 trajectory descriptors are organized into six interpretable families:
 
 | Family | Descriptors | Description |
 |---|---|---|
-| **Uncertainty Evolution** | U1, U2, U3, U4, entropy, confidence | Per-depth uncertainty values |
-| **Trajectory Shape** | traj_slope, late_spike, U_range | Overall trajectory geometry |
+| **Uncertainty Evolution** | U1, U2, U3, U4, entropy, confidence, traj_slope | Per-depth uncertainty values |
+| **Trajectory Shape** | late_spike, U_range | Overall trajectory geometry |
 | **Cross-Depth Agreement** | agreement, early_disagree, late_disagree | Consistency of predictions across depths |
 | **Logit & Probability Statistics** | logit_mean, logit_range, prob_mean, prob_std | Distributional properties |
 | **Velocity & Acceleration** | velocity_mean, velocity_std, accel_mean, accel_std | Rate of change dynamics |
@@ -170,18 +135,6 @@ UTA is compared against 11 baselines spanning three categories:
 **Supervised (2):** ConfidNet, Learned (logistic regression on simple uncertainty features)
 
 Note: Under binary sigmoid classification (NIH, CheXpert), Energy Score, MaxLogit, and DOCTOR reduce to monotonic transformations of a single logit, producing identical AUROC to MSP.
-
-## Citation
-
-```bibtex
-@article{rahman2025uta,
-  title={Uncertainty Trajectory Analysis for Misclassification Detection in Deep Neural Networks},
-  author={Rahman, Zahid Ur and Kim, Jin-Young},
-  journal={Knowledge-Based Systems},
-  year={2025},
-  publisher={Elsevier}
-}
-```
 
 ## License
 
