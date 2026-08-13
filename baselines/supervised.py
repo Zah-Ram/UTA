@@ -19,12 +19,14 @@ from .unsupervised import unc_msp, unc_entropy, unc_aux_disagreement
 class ConfidNet(nn.Module):
     """ConfidNet: Confidence estimation network (Corbiere et al., NeurIPS 2019).
 
-    A 4-layer MLP trained to predict the True Class Probability (TCP)
-    from penultimate-layer features of the base classifier.
+    A succession of dense layers with a final sigmoid activation, built on the
+    penultimate features of the frozen base classifier, trained to regress the
+    True Class Probability (TCP).
 
     Args:
         input_dim: Dimensionality of penultimate features (e.g., 1024 for DenseNet-121).
-        hidden_dims: List of hidden layer dimensions.
+        hidden_dims: List of hidden layer dimensions. Default gives 5 dense
+            layers in total, following the paper's architecture.
     """
 
     def __init__(self, input_dim, hidden_dims=None):
@@ -45,15 +47,46 @@ class ConfidNet(nn.Module):
         return self.net(x)
 
 
-def train_confidnet(features, tcp_targets, device, epochs=30, patience=5):
+def compute_tcp_targets(probs, labels):
+    """True Class Probability targets (Corbiere et al., Eq. 2).
+
+    TCP is the probability the model assigns to the *true* class. Under
+    independent sigmoids, the two-class distribution for a given label is
+    [1 - p, p], so the true-class probability is p when the label is positive
+    and 1 - p when it is negative.
+
+    Note this is NOT binary correctness: a confidently wrong prediction gets a
+    TCP near 0, a borderline correct one gets a TCP near 0.5. That graded
+    target is the paper's contribution over a correct/incorrect target.
+
+    Args:
+        probs: np.ndarray (N,), predicted positive-class probabilities.
+        labels: np.ndarray (N,), ground-truth binary labels.
+
+    Returns:
+        np.ndarray (N,), TCP targets in [0, 1].
+    """
+    probs = np.asarray(probs, dtype=float)
+    labels = np.asarray(labels, dtype=float)
+    return np.where(labels == 1, probs, 1.0 - probs)
+
+
+def train_confidnet(features, tcp_targets, device, epochs=30, patience=5,
+                    batch_size=128):
     """Train ConfidNet on penultimate features.
+
+    Trained with the l2 loss of Corbiere et al. (Eq. 4), regressing the TCP
+    target. The paper reports that a binary cross-entropy target performs
+    worse, so BCE is a different (weaker) method, not this one.
 
     Args:
         features: np.ndarray (N, D), penultimate features.
-        tcp_targets: np.ndarray (N,), True Class Probability targets.
+        tcp_targets: np.ndarray (N,), True Class Probability targets
+            (use compute_tcp_targets).
         device: torch device.
         epochs: Maximum training epochs.
         patience: Early stopping patience.
+        batch_size: Mini-batch size for training.
 
     Returns:
         Trained ConfidNet model.
@@ -71,19 +104,23 @@ def train_confidnet(features, tcp_targets, device, epochs=30, patience=5):
     model = ConfidNet(features.shape[1]).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
-    criterion = nn.BCELoss()
+    criterion = nn.MSELoss()
 
+    n_train = len(train_idx)
     best_val_loss = float('inf')
     patience_counter = 0
     best_state = None
 
     for epoch in range(epochs):
         model.train()
-        optimizer.zero_grad()
-        pred = model(X_train)
-        loss = criterion(pred, y_train)
-        loss.backward()
-        optimizer.step()
+        perm = torch.randperm(n_train, device=device)
+        for start in range(0, n_train, batch_size):
+            batch = perm[start:start + batch_size]
+            optimizer.zero_grad()
+            pred = model(X_train[batch])
+            loss = criterion(pred, y_train[batch])
+            loss.backward()
+            optimizer.step()
 
         model.eval()
         with torch.no_grad():
