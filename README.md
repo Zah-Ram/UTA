@@ -4,7 +4,7 @@
 
 ## Overview
 
-UTA is a misclassification detection framework that monitors the evolution of predictions across hierarchical network depths rather than relying solely on terminal outputs. By equipping a backbone network with lightweight auxiliary classifiers, UTA extracts the prediction trajectory (probability, logit, and entropy) across multiple intermediate depths in a single forward pass, then encodes these dynamics into 23 interpretable descriptors for error detection.
+UTA is a misclassification detection framework that monitors the evolution of predictions across hierarchical network depths rather than relying solely on terminal outputs. By equipping a backbone network with lightweight auxiliary classifiers, UTA extracts the prediction trajectory (probability, logit, and entropy) across multiple intermediate depths in a single forward pass, then encodes these dynamics into 23 interpretable descriptors for diagnosing model behavior.
 
 ## Key Results
 
